@@ -2,6 +2,14 @@
 
 
 
+
+
+- 工作区（working tree）： 本地编辑器
+- 暂存区（index）：git add操作后进入暂存区，可用git status查看
+- 本地仓库（repository）：git commit 后进入本地仓库
+
+[git commit回退三种姿势_DiuDiu_yang的博客-CSDN博客_git 回退commit](https://blog.csdn.net/qq_41261490/article/details/108119801)
+
 # 1. 初始化git和github
 
 1. 先在github上新建一个项目
@@ -64,3 +72,13 @@
 新增文件:  `git add a.txt`
 
 删除文件: `git rm a.txt`
+
+
+
+初始化项目时,github已存在文件时,会发生冲突  `error: failed to push some refs to`
+
+```git
+使用如下命令：git pull --rebase origin master
+然后再进行上传: git push -u origin master
+```
+
