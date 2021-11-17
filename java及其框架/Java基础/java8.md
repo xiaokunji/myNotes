@@ -2,23 +2,27 @@
 
 ![image-20210429111143136](https://gitee.com/xiaokunji/my-images/raw/master/myMD/java8-steam.png)
 
-如表1-1中所示，**Stream中的操作可以分为两大类**：++中间操作与结束操作++，  
+如表1-1中所示，**Stream中的操作可以分为两大类**：<u>中间操作与结束操作</u>，  
+
 &emsp;&emsp;中间操作只是对操作进行了记录，只有结束操作才会触发实际的计算（即惰性求值），这也是Stream在迭代大集合时高效的原因之一。  
+
 &emsp;&emsp;中间操作又可以分为无状态（Stateless）操作与有状态（Stateful）操作，前者是指元素的处理不受之前元素的影响；后者是指该操作只有拿到所有元素之后才能继续下去。  
+
 &emsp;&emsp;结束操作又可以分为短路与非短路操作，这个应该很好理解，前者是指遇到某些符合条件的元素就可以得到最终结果；而后者是指必须处理所有元素才能得到最终结果。
 
 >来自 <http://www.cnblogs.com/Dorae/p/7779246.html> 
 
-大概总结一下: ++流式迭代集合操作,中间操作不会实际计算,而且会并行处理,(一个数据会同时被处理),等到了结束操作才会触发操作(和spark很像),java8的foreach还有并发处理,在数据量很大时foreach和流式的优势才会体现++
+大概总结一下: <u>流式迭代集合操作,中间操作不会实际计算,而且会并行处理,(一个数据会同时被处理),等到了结束操作才会触发操作(和spark很像),java8的foreach还有并发处理,在数据量很大时foreach和流式的优势才会体现</u>
 
-函数式接口(导读):   那些地方可以用,看流的入参就行了,关键是不会写.....
+函数式接口(导读):   那些地方可以用,看流的入参就行了
 1. Function     =>  函数,有输入有输出    参入参数T , 返回 R                (用得多)
 2. predicate  => 谓词/判定, 有输入,返回布尔值,主要作为一个谓词演算推导真假值存在   (用得多)
 3. consumer => 谓词/消费,有输入无输出,
 4. supplier  =>     提供, 无输入有输出,
 5. (特殊)  Operator  =>    继承于 BiFunction ,所以也属于function, 算子Operator包括：UnaryOperator和BinaryOperator。分别对应单元算子和二元算子。其中BinaryOperator 可用于reduce
 > 来自 <https://blog.csdn.net/lz710117239/article/details/76192629>   
-来自 <http://www.sohu.com/a/123958799_465959> 
+>
+> 来自 <http://www.sohu.com/a/123958799_465959> 
 
 ```
         // Function => 就是一个函数,有输入输出
@@ -157,8 +161,10 @@ divideBatchHandler(nameList,System.out::println);
 ```
 
 `T reduce(T identity, BinaryOperator<T> accumulator)`  
+
 相对于一个参数的方法来说，它多了一个T类型的参数；实际上就相当于需要计算的值在Stream的基础上多了一个初始化的值
      eg.  
+
 ```
 Stream<String> s = Stream.of("test", "t1", "t2", "teeeee", "aaaa", "taaa");
 System.out.println(s.reduce("[value]:", (s1, s2) -> s1.concat(s2)));    // [value]:testt1t2teeeeeaaaataaa
@@ -333,9 +339,3 @@ public void test() {
 
 ---
 
-
-
-
-以下是图片
-
-[streamImg 
