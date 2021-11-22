@@ -42,7 +42,7 @@ The Advanced Message Queuing Protocol (AMQP)：是一个标准开放的应用层
 
  
 
-## ## **2.什么是消息系统？**
+## **2.什么是消息系统？**
 
 ​     消息系统负责将数据从一个应用程序传输到另一个应用程序，因此应用程序可以专注于数据，但不必担心如何共享数据。 分布式消息传递基于可靠消息队列的概念。 消息在客户端应用程序和消息传递系统之间异步排队。 有两种类型的消息传递模式可用 - 一种是点对点的，另一种是发布 - 订阅(*pub-sub*)消息传递系统。 大多数消息传递模式遵循*pub-sub*。
 
@@ -182,8 +182,7 @@ Kafka提供了一个角色：coordinator来执行对于consumer group的管理�
 上面简单讨论了新版coordinator的设计，那么consumer group如何确定自己的coordinator是谁呢？ 简单来说分为两步：
 
 - 确定consumer group位移信息写入__consumers_offsets的哪个分区。具体计算公式：
-
-- - 　　__consumers_offsets partition# = Math.abs(groupId.hashCode() % groupMetadataTopicPartitionCount)  注意：groupMetadataTopicPartitionCount由offsets.topic.num.partitions指定，默认是50个分区。
+  - __consumers_offsets partition# = Math.abs(groupId.hashCode() % groupMetadataTopicPartitionCount)  注意：groupMetadataTopicPartitionCount由offsets.topic.num.partitions指定，默认是50个分区。
 
 - 该分区leader所在的broker就是被选定的coordinator
 
