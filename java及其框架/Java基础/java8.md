@@ -24,7 +24,7 @@
 >
 > 来自 <http://www.sohu.com/a/123958799_465959> 
 
-```
+```java
         // Function => 就是一个函数,有输入输出
         // 接收一个参数
         Function<Integer, Integer> add = x -> x + 1;
@@ -165,7 +165,7 @@ divideBatchHandler(nameList,System.out::println);
 相对于一个参数的方法来说，它多了一个T类型的参数；实际上就相当于需要计算的值在Stream的基础上多了一个初始化的值
      eg.  
 
-```
+```java
 Stream<String> s = Stream.of("test", "t1", "t2", "teeeee", "aaaa", "taaa");
 System.out.println(s.reduce("[value]:", (s1, s2) -> s1.concat(s2)));    // [value]:testt1t2teeeeeaaaataaa
 ```
@@ -174,7 +174,7 @@ System.out.println(s.reduce("[value]:", (s1, s2) -> s1.concat(s2)));    // [valu
 
 
 json 格式化使用, 值不为null的才输出
-```
+```java
 return JSON.toJSONString(val,(PropertyFilter)((obj, name, value) -> value != null));
 // NameFilter: 处理name字段,(比如对name加个后缀)
 // ValueFilter: 处理value字段,(比如对value加个后缀)
