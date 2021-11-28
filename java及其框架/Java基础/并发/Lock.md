@@ -71,11 +71,15 @@ compareAndSetState()
 
 
 
+<font style='color:red'>这个队列会不会超长,导致内存泄露???</font>
+
 > 总结: 通过一个队列来让线程们排队执行,就做到了线程安全,  然后通过一个状态来做标识(例如ReentrantLock用这个状态来表示加锁次数), 
 >
 > > 在添加队列时需要获得(自己的)锁才能添加队列, 加到队列后让当前线程阻塞(park()函数),每次释放锁时,就把队列中的下一个线程启动(unpark()函数)
 > >
 > > [Java线程中断(Interrupt)与阻塞(park)的区别 - 周二鸭 - 博客园 (cnblogs.com)](https://www.cnblogs.com/jojop/p/13957027.html)
+> >
+> > [Thread.sleep、synchronized、LockSupport.park的线程阻塞区别 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/309822935)
 
 
 
@@ -233,6 +237,7 @@ final boolean acquireQueued(final Node node, int arg) {
 
 ```java
 public final boolean release(int arg) {
+    // 先调用具体实现类的释放规则
     if (tryRelease(arg)) {
         Node h = head;
         if (h != null && h.waitStatus != 0)
@@ -266,15 +271,300 @@ private void unparkSuccessor(Node node) {
 
 
 
+### 3.2.3 超时释放资源
+
+通过调用同步器的 doAcquireNanos(int arg,long nanosTimeout)方法可以超时获取同步状态，即在指定的时间段内获取同步状态，如果获取到同步状态则返回 true，否则，返回 false。   
+
+超时具体实现:  先拿到截止时间, 然后在自旋里看是否到了截止时间, 如果到了就算超时
+
+```java
+// java.util.concurrent.locks.AbstractQueuedSynchronizer#doAcquireNanos  
+/**
+     * The number of nanoseconds for which it is faster to spin
+     * rather than to use timed park. A rough estimate suffices
+     * to improve responsiveness with very short timeouts.
+     */
+static final long spinForTimeoutThreshold = 1000L;
+private boolean doAcquireNanos(int arg, long nanosTimeout) throws InterruptedException {
+        if (nanosTimeout <= 0L)
+            return false;
+        final long deadline = System.nanoTime() + nanosTimeout;
+        final Node node = addWaiter(Node.EXCLUSIVE);
+        try {
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    return true;
+                }
+                nanosTimeout = deadline - System.nanoTime();
+                if (nanosTimeout <= 0L) {
+                    cancelAcquire(node);
+                    return false;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) && nanosTimeout > SPIN_FOR_TIMEOUT_THRESHOLD)
+                    LockSupport.parkNanos(this, nanosTimeout);
+                if (Thread.interrupted())
+                    throw new InterruptedException();
+            }
+        } catch (Throwable t) {
+            cancelAcquire(node);
+            throw t;
+        }
+    }
+```
 
 
 
+如果 nanosTimeout 小于等于 spinForTimeoutThreshold（1000 纳秒）时，将不会使该线程进行超时等待，而是进入快速的自旋过程。原因在于，非常短的超时等待无法做到十分精确，如果这时再进行超时等待，相反会让 nanosTimeout 的超时从整体上表现得反而不精确。因此，在超时非常短的场景下，同步器会进入无条件的快速自旋  
 
 
 
+## 3.3 ReentrantLock  (重入锁)
+
+它有几个重要的功能, 
+
+- 公平锁和非公平锁
+- 可重入
+
+> 默认是非公平锁, 毕竟性能高嘛
+>
+> 可重入性是用了AQS中状态标识字段,其值表示重入次数
+
+**获取锁**
+
+1. CAS操作抢占锁，抢占成功则修改锁的状态为1，将线程信息记录到锁当中，返回state=1
+2. 抢占不成功，tryAcquire获取锁资源，获取成功直接返回，获取不成功，新建一个检点插入到当前AQS队列的尾部，acquireQueued（node）表示唤醒AQS队列中的节点再次去获取锁
+
+**释放锁**
+
+1. 获取锁的状态值，释放锁将状态值-1
+2. 判断当前释放锁的线程和锁中保存的线程信息是否一致，不一致会抛出异常
+3. 状态只-1直到为0，锁状态值为0表示不再占用，为空闲状态
 
 
 
+[ReentrantLock详解_SunStaday的博客-CSDN博客_reentrantlock](https://blog.csdn.net/SunStaday/article/details/107451530)
+
+> 其实它自己没什么功能, 只是实现了AQS
+
+## 3.4 ReentrantReadWriteLock  (读写锁)
+
+　　ReentrantReadWriteLock是Lock的另一种实现方式，我们已经知道了ReentrantLock是一个排他锁，同一时间只允许一个线程访问，而ReentrantReadWriteLock允许多个读线程同时访问，但不允许写线程和读线程、写线程和写线程同时访问。相对于排他锁，提高了并发性。在实际应用中，大部分情况下对共享数据（如缓存）的访问都是读操作远多于写操作，这时ReentrantReadWriteLock能够提供比排他锁更好的并发性和吞吐量。
+
+　　读写锁内部维护了两个锁，一个用于读操作，一个用于写操作。所有 ReadWriteLock实现都必须保证 writeLock操作的内存同步效果也要保持与相关 readLock的联系。也就是说，成功获取读锁的线程会看到写入锁之前版本所做的所有更新。
+
+　　ReentrantReadWriteLock支持以下功能：
+
+　　　　1）支持公平和非公平的获取锁的方式；
+
+　　　　2）支持可重入。读线程在获取了读锁后还可以获取读锁；写线程在获取了写锁之后既可以再次获取写锁又可以获取读锁；
+
+　　　　3）还允许从写入锁降级为读取锁，其实现方式是：先获取写入锁，然后获取读取锁，最后释放写入锁。但是，从读取锁升级到写入锁是不允许的；
+
+　　　　4）读取锁和写入锁都支持锁获取期间的中断；
+
+　　　　5）Condition支持。仅写入锁提供了一个 Conditon 实现；读取锁不支持 Conditon ，readLock().newCondition() 会抛出 UnsupportedOperationException。 
+
+```java
+ 	    ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+        ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
+        writeLock.lock();
+        // todo do some thing
+        writeLock.unlock();
+
+        ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
+        readLock.lock();
+        // todo do some thing
+        readLock.unlock();
+```
+
+
+
+[ReentrantReadWriteLock用法 - 简书 (jianshu.com)](https://www.jianshu.com/p/4b45f9a1f7d2)
+
+
+
+## 3.5 Condition 接口  
+
+Condition的作用用一句话概括就是为了实现线程的等待（await）和唤醒（signal），多线程情况下为什么需要等待唤醒机制？原因是有些线程执行到某个阶段需要等待符合某个条件才可以继续执行，
+
+有一个经典的场景就是在容量有限的缓冲区实现生产者消费者模型，如果缓冲区满了，这个时候生产者就不能再生产了，就要阻塞等待消费者消费，当缓冲区为空了，消费者就要阻塞等待生产者生产.
+
+案例如下:
+
+```java
+public class MyTest {
+    Lock lock = new ReentrantLock();
+    Condition condition2 = lock.newCondition();
+    Condition condition1 = lock.newCondition();
+    
+    public static void main(String[] args) {
+        MyTest test = new MyTest();
+
+        new Thread(()->{
+            try {
+                test.awaitTest();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        new Thread(test::signalTest).start();
+    }
+    
+    public void awaitTest() throws Exception{
+        try {
+            lock.lock();
+            System.out.println("等待中");
+            condition1.await();
+            System.out.println("解除等待");
+        } finally {
+            lock.unlock();
+        }
+    }
+    public void signalTest(){
+        try {
+            lock.lock();
+            condition1.signal();
+            System.out.println("继续执行");
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+```
+
+
+
+> 结果如下:  
+>
+> > 等待中
+> >
+> > 继续执行
+> >
+> > 解除等待
+
+1. **等待队列**
+
+等待队列是一个 FIFO 的队列，在队列中的每个节点都包含了一个线程引用，该线程就是在 Condition 对象上等待的线程，`Condition condition = new ReentrantLock().newCondition();` ,每次调用`newCondition()`就会生成一个等待队列.
+
+如果一个线程调用了 Condition.await()方法，那么该线程将会释放锁、构造成节点加入等待队列并进入等待状态。
+
+这些节点复用了同步器中节点的定义，所以同步队列和等待队列中节点类型都是同步器的静态内部类 AbstractQueuedSynchronizer.Node。
+
+  一个 Condition 包含一个等待队列， Condition 拥有首节点（firstWaiter）和尾节点（lastWaiter）。 当前线程调用 Condition.await()方法，将会以当前线程构造节点，并将节点从尾部加入等待队列  , 如图
+
+![image-20211129001537752](https://gitee.com/xiaokunji/my-images/raw/master/myMD/condition队列基本图.png)
+
+Condition 拥有首尾节点的引用，而新增节点只需要将原有的尾节点 nextWaiter 指向它，并且更新尾节点即可。(这和AQS的同步队列是一样的)
+
+<u>上述节点引用更新的过程并没有使用 CAS 保证，原因在于调用 await()方法的线程必定是获取了锁的线程</u>，也就是说该过程是由锁来保证线程安全的  
+
+
+
+在 Object 的监视器模型上，一个对象拥有一个同步队列和等待队列，而并发包中的Lock（更确切地说是同步器）拥有一个同步队列和多个等待队列  , 如图
+
+![image-20211129001736337](https://gitee.com/xiaokunji/my-images/raw/master/myMD/AQS同步队列与等待队列.png)
+
+2. **等待**
+
+调用 Condition 的 await()方法（或者以 await 开头的方法），会使当前线程进入等待队列并释放锁，同时线程状态变为等待状态。当从 await()方法返回时，当前线程一定获取了 Condition 相关联的锁  , 源码如下
+
+```java
+// java.util.concurrent.locks.AbstractQueuedSynchronizer.ConditionObject#await()
+public final void await() throws InterruptedException {
+            if (Thread.interrupted())
+                throw new InterruptedException();
+        // 当前线程加入等待队列
+            Node node = addConditionWaiter();
+        // 释放同步状态，也就是释放锁 (因为这是await嘛, 释放资源的暂停,这样同步队列中后面的节点就能执行了 )
+            int savedState = fullyRelease(node);
+            int interruptMode = 0;
+            while (!isOnSyncQueue(node)) {
+                LockSupport.park(this);
+                if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+                    break;
+            }
+            if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
+                interruptMode = REINTERRUPT;
+            if (node.nextWaiter != null) // clean up if cancelled
+                unlinkCancelledWaiters();
+            if (interruptMode != 0)
+                reportInterruptAfterWait(interruptMode);
+        }
+```
+
+调用该方法的线程成功获取了锁的线程，也就是同步队列中的首节点，该方法会将当前线程构造成节点并加入等待队列中，然后释放同步状态，唤醒同步队列中的后继节点，然后当前线程会进入等待状态  .
+
+如果从队列的角度去看，当前线程加入 Condition 的等待队列，同步队列的首节点并不会直接加入等待队列，而是通过`addConditionWaiter()`方法把当前线程构造成一个新的节点并将其加入等待队列中。  源码如下:
+
+```java
+private Node addConditionWaiter() {
+            Node t = lastWaiter;
+            // If lastWaiter is cancelled, clean out.
+            if (t != null && t.waitStatus != Node.CONDITION) {
+                unlinkCancelledWaiters();
+                t = lastWaiter;
+            }
+            Node node = new Node(Thread.currentThread(), Node.CONDITION);
+            if (t == null)
+                firstWaiter = node;
+            else
+                t.nextWaiter = node;
+            lastWaiter = node;
+            return node;
+        }
+```
+
+
+
+![image-20211129002522467](https://gitee.com/xiaokunji/my-images/raw/master/myMD/AQS同步队列与阻塞队列的交互.png)
+
+
+
+> 总结: 要使用condition, 则必须获得锁, (当前线程获得锁了,表示在同步队列的首位了), 此时使用await方法就会把这个节点放到等待队列中(还会释放锁)
+>
+> 然后等待队列中的节点排队等待被唤醒
+
+
+
+3. **通知**
+
+   调用 Condition 的 signal()方法，将会唤醒在等待队列中等待时间最长的节点（首节点），在唤醒节点之前，会将节点移到同步队列中。 Condition 的 signal()方法，  源码如下:
+
+   ```java
+      public final void signal() {
+               if (!isHeldExclusively())
+                   throw new IllegalMonitorStateException();
+               Node first = firstWaiter;
+               if (first != null)
+                   doSignal(first);
+           }
+   ```
+
+   
+
+   调用该方法的前置条件是当前线程必须获取了锁，可以看到 signal()方法进行了isHeldExclusively()检查，也就是当前线程必须是获取了锁的线程。
+
+   接着获取等待队列的首节点，将其移动到同步队列并使用 LockSupport 唤醒节点中的线程。节点从等待队列移动到同步队列的过程如图  
+
+   ![image-20211129002735864](https://gitee.com/xiaokunji/my-images/raw/master/myMD/AQS同步队列与阻塞队列的交互2.png)
+
+通过调用同步器的 enq(Node node)方法，等待队列中的头节点线程安全地移动到同步队列。当节点移动到同步队列后，当前线程再使用 LockSupport 唤醒该节点的线程。
+
+被唤醒后的线程，将从 await()方法中的 while 循环中退出（`isOnSyncQueue(Nodenode)`方法返回 true，节点已经在同步队列中），进而调用同步器的 acquireQueued()方法加入到获取同步状态的竞争中。
+
+成功获取同步状态（或者说锁）之后，被唤醒的线程将从先前调用的 await()方法返回，此时该线程已经成功地获取了锁。  
+
+> 总结: 要想唤醒线程, 先得获取锁(也就是说,只有等待队列中的首位才有操作权限), 唤醒后,就会把节点加入到同步队列中, 
+>
+> 在同步队列中等待获得锁
+
+
+
+[AQS-Condition介绍 - 猿起缘灭 - 博客园 (cnblogs.com)](https://www.cnblogs.com/gunduzi/p/13614429.html)
 
 
 
