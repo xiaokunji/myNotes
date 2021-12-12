@@ -51,7 +51,13 @@ private Condition condition = lock.newCondition();
 
 抽象队列同步器 AbstractQueuedSynchronizer（以下简称同步器），是用来构建锁或者其他同步组件的基础框架，它使用了一个 int 成员变量表示同步状态，通过内置的 FIFO 队列来完成资源获取线程的排队工作.
 
+AQS的主要使用方式是继承它作为一个内部辅助类实现同步原语，它可以简化你的并发工具的内部实现，屏蔽同步状态管理、线程的排队、等待与唤醒等底层操作。AQS设计基于模板方法模式，开发者需要继承同步器并且重写指定的方法，将其组合在并发组件的实现中，调用同步器的模板方法，模板方法会调用使用者重写的方法。
+
 使用AQS能简单且高效地构造出应用广泛的同步器，比如我们提到的ReentrantLock，Semaphore，ReentrantReadWriteLock，SynchronousQueue，FutureTask等等皆是基于AQS的。
+
+> - ReentrantLock: 使用了AQS的独占获取和释放,用state变量记录某个线程获取独占锁的次数,获取锁时+1，释放锁时-1，在获取时会校验线程是否可以获取锁。
+> - Semaphore: 使用了AQS的共享获取和释放，用state变量作为计数器，只有在大于0时允许线程进入。获取锁时-1，释放锁时+1。
+> - CountDownLatch: 使用了AQS的共享获取和释放，用state变量作为计数器，在初始化时指定。只要state还大于0，获取共享锁会因为失败而阻塞，直到计数器的值为0时，共享锁才允许获取，所有等待线程会被逐一唤醒。
 
 当然，我们自己也能利用AQS非常轻松容易地构造出符合我们自己需求的同步器，只要子类实现它的几个`protected`方法就可以了，
 
@@ -71,11 +77,37 @@ compareAndSetState()
 
 
 
-<font style='color:red'>这个队列会不会超长,导致内存泄露???</font>
+**AQS如何防止内存泄露**
 
+AQS维护了一个FIFO队列，AQS在无竞争条件下，甚至都不会new出head和tail节点。
+
+线程成功获取锁时设置head节点的方法为setHead，由于头节点的thread并不重要，此时会置node的thread和prev为null，
+
+完了之后还会置原先head也就是线程对应node的前驱的next为null，从而实现队首元素的安全移出。
+
+而在取消节点时，也会令node.thread = null，在node不为tail的情况下，会使node.next = node（之所以这样也是为了isOnSyncQueue实现更加简洁）
+
+> 虽然不是很懂....
+>
+> [AbstractQueuedSynchronizer源码解读 - 活在夢裡 - 博客园 (cnblogs.com)](https://www.cnblogs.com/micrari/p/6937995.html)
+
+
+
+> 大致思路:
+>
+> AQS内部维护一个CLH队列来管理锁。
+>
+> 1. 线程会首先尝试获取锁，如果失败，则将当前线程以及等待状态等信息包成一个Node节点加到同步队列里。
+> 2. 接着会不断循环尝试获取锁（条件是当前节点为head的直接后继才会尝试）,如果失败则会阻塞自己，直至被唤醒；
+> 3. 而当持有锁的线程释放锁时，会唤醒队列中的后继线程。
+>
 > 总结: 通过一个队列来让线程们排队执行,就做到了线程安全,  然后通过一个状态来做标识(例如ReentrantLock用这个状态来表示加锁次数), 
 >
 > > 在添加队列时需要获得(自己的)锁才能添加队列, 加到队列后让当前线程阻塞(park()函数),每次释放锁时,就把队列中的下一个线程启动(unpark()函数)
+> >
+> > **线程中断 : **
+> >
+> > 在一个线程正常结束之前，如果被强制终止，那么就有可能造成一些比较严重的后果，设想一下如果现在有一个线程持有同步锁，然后在没有释放锁资源的情况下被强制休眠，那么这就造成了其他线程无法访问同步代码块。因此我们可以看到在 Java 中类似 `Thread#stop()` 方法被标为 `@Deprecated`。针对上述情况，我们不能直接将线程给终止掉，但有时又必须将让线程停止运行某些代码，那么此时我们必须有一种机制让线程知道它该停止了。此时可以通过 `Thread#interrupt()` 给线程该线程一个标志位，让该线程自己决定该怎么办。
 > >
 > > [Java线程中断(Interrupt)与阻塞(park)的区别 - 周二鸭 - 博客园 (cnblogs.com)](https://www.cnblogs.com/jojop/p/13957027.html)
 > >
@@ -123,6 +155,122 @@ AQS的设计是基于**模板方法模式**的，它有一些方法必须要子�
 
 
 
+首先看一下AQS中的嵌套类Node的定义。
+
+```java
+static final class Node {
+
+    /**
+     * 用于标记一个节点在共享模式下等待
+     */
+    static final Node SHARED = new Node();
+
+    /**
+     * 用于标记一个节点在独占模式下等待
+     */
+    static final Node EXCLUSIVE = null;
+
+    /**
+     * 等待状态：取消
+     */
+    static final int CANCELLED = 1;
+
+    /**
+     * 等待状态：通知
+     */
+    static final int SIGNAL = -1;
+
+    /**
+     * 等待状态：条件等待
+     */
+    static final int CONDITION = -2;
+
+    /**
+     * 等待状态：传播
+     */
+    static final int PROPAGATE = -3;
+
+    /**
+     * 等待状态
+     */
+    volatile int waitStatus;
+
+    /**
+     * 前驱节点
+     */
+    volatile Node prev;
+
+    /**
+     * 后继节点
+     */
+    volatile Node next;
+
+    /**
+     * 节点对应的线程
+     */
+    volatile Thread thread;
+
+    /**
+     * 等待队列中的后继节点
+     */
+    Node nextWaiter;
+
+    /**
+     * 当前节点是否处于共享模式等待
+     */
+    final boolean isShared() {
+        return nextWaiter == SHARED;
+    }
+
+    /**
+     * 获取前驱节点，如果为空的话抛出空指针异常
+     */
+    final Node predecessor() throws NullPointerException {
+        Node p = prev;
+        if (p == null) {
+            throw new NullPointerException();
+        } else {
+            return p;
+        }
+    }
+
+    Node() {
+    }
+
+    /**
+     * addWaiter会调用此构造函数
+     */
+    Node(Thread thread, Node mode) {
+        this.nextWaiter = mode;
+        this.thread = thread;
+    }
+
+    /**
+     * Condition会用到此构造函数
+     */
+    Node(Thread thread, int waitStatus) {
+        this.waitStatus = waitStatus;
+        this.thread = thread;
+    }
+}
+```
+
+这里有必要专门梳理一下节点等待状态的定义，因为AQS源码中有大量的状态判断与跃迁。
+
+| 值             | 描述                                                         |
+| -------------- | :----------------------------------------------------------- |
+| CANCELLED (1)  | 当前线程因为超时或者中断被取消。这是一个终结态，也就是状态到此为止。 |
+| SIGNAL (-1)    | 当前线程的后继线程被阻塞或者即将被阻塞，当前线程释放锁或者取消后需要唤醒后继线程。这个状态一般都是后继线程来设置前驱节点的。 |
+| CONDITION (-2) | 当前线程在condition队列中。                                  |
+| PROPAGATE (-3) | 用于将唤醒后继线程传递下去，这个状态的引入是为了完善和增强共享锁的唤醒机制。在一个节点成为头节点之前，是不会跃迁为此状态的 |
+| 0              | 表示无状态。                                                 |
+
+> 对于分析AQS中不涉及`ConditionObject`部分的代码，可以认为队列中的节点状态只会是CANCELLED, SIGNAL, PROPAGATE, 0这几种情况。
+
+![img](https://images2017.cnblogs.com/blog/584724/201709/584724-20170903165624499-1756356443.png)
+
+
+
 **以下仅讲述独占锁的方式**
 
 
@@ -162,16 +310,30 @@ private Node addWaiter(Node mode) {
     return node;
 }
 
-// 自旋CAS插入等待队列
+/**
+ * 通过循环+CAS在队列中成功插入一个节点后返回。
+ */
 private Node enq(final Node node) {
     for (;;) {
         Node t = tail;
-        if (t == null) { // Must initialize
+        // 初始化head和tail
+        if (t == null) {
             // 不知道为什么要单独new一个节点,而不是用入参, 而且它们表示的资源共享模式也不一样????????
             if (compareAndSetHead(new Node()))
                 tail = head;
         } else {
+            /*
+             * AQS的精妙就是体现在很多细节的代码，比如需要用CAS往队尾里增加一个元素
+             * 此处的else分支是先在CAS的if前设置node.prev = t，而不是在CAS成功之后再设置。
+             * 一方面是基于CAS的双向链表插入目前没有完美的解决方案，另一方面这样子做的好处是：
+             * 保证每时每刻tail.prev都不会是一个null值，否则如果node.prev = t
+             * 放在下面if的里面，会导致一个瞬间tail.prev = null，这样会使得队列不完整。
+             *
+             * 这里的双向队列添加尾节点其实有三步, 1. 把node的前驱节点挂在尾节点上; 2. 把tail标识改到node上; 3. 把尾节点的后驱节点连上node
+             * 如果把node.prev = t 放到cas中,相当于先执行了第二步,就会出现短暂的队列不完整(队列tail不见了)
+             */
             node.prev = t;
+            // CAS设置tail为node，成功后把老的tail也就是t连接到node。
             if (compareAndSetTail(t, node)) {
                 t.next = node;
                 return t;
@@ -182,6 +344,8 @@ private Node enq(final Node node) {
 ```
 
 > 上面的两个函数比较好理解，就是在队列的尾部插入新的Node节点，但是需要注意的是由于AQS中会存在多个线程同时争夺资源的情况，因此肯定会出现多个线程同时插入节点的操作，在这里是通过CAS自旋的方式保证了操作的线程安全性。
+>
+> 
 
 OK，现在回到最开始的aquire(int arg)方法。现在通过addWaiter方法，已经把一个Node放到等待队列尾部了。而处于等待队列的结点是从头结点一个一个去获取资源的。具体的实现我们来看看acquireQueued方法
 
@@ -203,16 +367,28 @@ final boolean acquireQueued(final Node node, int arg) {
                 return interrupted;
             }
             // 如果自己可以休息了，就进入waiting状态，直到被unpark()
-            if (shouldParkAfterFailedAcquire(p, node) &&
-                parkAndCheckInterrupt())
+            if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
                 interrupted = true;
         }
     } finally {
         if (failed)
+            // 发生异常了,需要取消这个node获得锁
             cancelAcquire(node);
     }
 }
 ```
+
+
+
+![bdp流程图](https://gitee.com/xiaokunji/my-images/raw/master/myMD/AQS获得锁流程图.jpg)
+
+
+
+获取锁的大概通用流程如下：
+
+线程会首先尝试获取锁，如果失败，则将当前线程以及等待状态等信息包成一个Node结点加到同步队列里。接着会不断循环尝试获取锁（获取锁的条件是当前结点为head的直接后继才会尝试），如果失败则会尝试阻塞自己（阻塞的条件是当前节结点的前驱结点是SIGNAL状态,所以大部分节点都处于自旋状态），阻塞后将不会执行后续代码，直至被唤醒；当持有锁的线程释放锁时，会唤醒队列中的后继线程，或者阻塞的线程被中断或者时间到了，那么阻塞的线程也会被唤醒。
+
+
 
 > 这里parkAndCheckInterrupt方法内部使用到了LockSupport.park(this)，顺便简单介绍一下park。
 >
@@ -233,7 +409,9 @@ final boolean acquireQueued(final Node node, int arg) {
 
 ### 3.2.2 释放资源
 
-释放资源相比于获取资源来说，会简单许多。在AQS中只有一小段实现。源码：
+释放资源相比于获取资源来说，会简单许多。在AQS中只有一小段实现。先释放锁,成功再唤醒后继线程
+
+源码：
 
 ```java
 public final boolean release(int arg) {
@@ -566,7 +744,11 @@ private Node addConditionWaiter() {
 
 [AQS-Condition介绍 - 猿起缘灭 - 博客园 (cnblogs.com)](https://www.cnblogs.com/gunduzi/p/13614429.html)
 
+[AbstractQueuedSynchronizer深入理解 - 博客园 (cnblogs.com)](https://www.cnblogs.com/micrari/p/6937995.html)
 
+[图解AQS的设计与实现 - Java填坑笔记 - 博客园 (cnblogs.com)](https://www.cnblogs.com/liqiangchn/p/11960944.html)
+
+[AQS(AbstractQueuedSynchronizer)源码深度解析(3)—同步队列以及独占式获取锁、释放锁的原理【一万字】_刘Java-CSDN博客](https://blog.csdn.net/weixin_43767015/article/details/120078891)
 
 
 
