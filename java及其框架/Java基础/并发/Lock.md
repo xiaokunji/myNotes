@@ -529,7 +529,7 @@ private boolean doAcquireNanos(int arg, long nanosTimeout) throws InterruptedExc
 
 ## 3.4 ReentrantReadWriteLock  (读写锁)
 
-　　ReentrantReadWriteLock是Lock的另一种实现方式，我们已经知道了ReentrantLock是一个排他锁，同一时间只允许一个线程访问，而ReentrantReadWriteLock允许多个读线程同时访问，但不允许写线程和读线程、写线程和写线程同时访问。相对于排他锁，提高了并发性。在实际应用中，大部分情况下对共享数据（如缓存）的访问都是读操作远多于写操作，这时ReentrantReadWriteLock能够提供比排他锁更好的并发性和吞吐量。
+　　ReentrantReadWriteLock是Lock的另一种实现方式，我们已经知道了ReentrantLock是一个排他锁，同一时间只允许一个线程访问，而ReentrantReadWriteLock允许多个读线程同时访问，但不允许写线程和读线程、写线程和写线程同时访问(称为写饥饿)。相对于排他锁，提高了并发性。在实际应用中，大部分情况下对共享数据（如缓存）的访问都是读操作远多于写操作，这时ReentrantReadWriteLock能够提供比排他锁更好的并发性和吞吐量。
 
 　　读写锁内部维护了两个锁，一个用于读操作，一个用于写操作。所有 ReadWriteLock实现都必须保证 writeLock操作的内存同步效果也要保持与相关 readLock的联系。也就是说，成功获取读锁的线程会看到写入锁之前版本所做的所有更新。
 
@@ -558,13 +558,124 @@ private boolean doAcquireNanos(int arg, long nanosTimeout) throws InterruptedExc
         readLock.unlock();
 ```
 
+ReentrantReadWriteLock实现了读写锁，但它有一个小弊端，就是在“写”操作的时候，其它线程不能写也不能读。我们称这种现象为“**写饥饿**”
 
+**导致写线程饥饿的情况：**当线程 A 持有读锁读取数据时，线程 B 要获取写锁修改数据就只能到队列里排队。此时又来了线程 C 读取数据，那么线程 C 就可以获取到读锁，而要执行写操作线程 B 就要等线程 C 释放读锁。由于该场景下读操作远远大于写的操作，此时可能会有很多线程来读取数据而获取到读锁，那么要获取写锁的线程 B 就只能一直等待下去，最终导致饥饿。
+
+
+
+[读写锁饥饿问题解决方案之StampedLock | 码农家园 (codenong.com)](https://www.codenong.com/cs110942321/)
+
+[14 锁接口和类 · 深入浅出Java多线程 (redspider.group)](http://concurrent.redspider.group/article/03/14.html)
 
 [ReentrantReadWriteLock用法 - 简书 (jianshu.com)](https://www.jianshu.com/p/4b45f9a1f7d2)
 
 
 
-## 3.5 Condition 接口  
+## 3.5 StampedLock
+
+`StampedLock`类是在Java 8 才发布的,它没有实现Lock接口和ReadWriteLock接口，但它其实是实现了“读写锁”的功能，并且性能比ReentrantReadWriteLock更高。StampedLock还把读锁分为了“乐观读锁”和“悲观读锁”两种。**StampedLock的底层并不是基于AQS的。**
+
+**1 优点**
+
+1. 没有饥饿发生
+2. 支持锁升级、
+3. 锁降级、
+4. 超时和中断
+5. 一次唤醒所有读节点
+
+**2 缺点**
+
+1. 无condition
+
+2. 非公平
+
+3. 写不可重入
+
+   
+
+前面提到了ReentrantReadWriteLock会发生“写饥饿”的现象，但StampedLock不会。它是怎么做到的呢？它的核心思想在于，**在读的时候如果发生了写，应该通过重试的方式来获取新的值，而不应该阻塞写操作。这种模式也就是典型的无锁编程思想，和CAS自旋的思想一样**
+
+> 个人感觉: 因为它引入了乐观锁机制, 当加了乐观读锁时还是可以拥有写锁的, 这样就避免的写饥饿,能否避免, 还是得看使用者,如果直接使用悲观读锁应该也会有写饥饿
+
+官方使用案例:
+
+```java
+public class Point {
+    private final StampedLock stampedLock = new StampedLock();
+
+    private double x;
+    private double y;
+
+    public void move(double deltaX, double deltaY) {
+        long stamp = stampedLock.writeLock(); // 获取写锁
+        try {
+            x += deltaX;
+            y += deltaY;
+        } finally {
+            stampedLock.unlockWrite(stamp); // 释放写锁
+        }
+    }
+
+    public double distanceFromOrigin() {
+        long stamp = stampedLock.tryOptimisticRead(); // 获得一个乐观读锁
+        // 注意下面两行代码不是原子操作
+        // 假设x,y = (100,200)
+        double currentX = x;
+        // 此处已读取到x=100，但x,y可能被写线程修改为(300,400)
+        double currentY = y;
+        // 此处已读取到y，如果没有写入，读取是正确的(100,200)
+        // 如果有写入，读取是错误的(100,400)
+        if (!stampedLock.validate(stamp)) { // 检查乐观读锁后是否有其他写锁发生
+            stamp = stampedLock.readLock(); // 获取一个悲观读锁
+            try {
+                currentX = x;
+                currentY = y;
+            } finally {
+                stampedLock.unlockRead(stamp); // 释放悲观读锁
+            }
+        }
+        return Math.sqrt(currentX * currentX + currentY * currentY);
+    }
+    //悲观读锁以及读锁升级写锁的使用
+	void moveIfAtOrigin(double newX,double newY) {
+		
+		long stamp = stampedLock.readLock(); //悲观读锁
+		try {
+			while (x == 0.0 && y == 0.0) {
+				long ws = stampedLock.tryConvertToWriteLock(stamp); //读锁转换为写锁
+				if (ws != 0L) { //转换成功
+					
+					stamp = ws; //票据更新
+					x = newX;
+					y = newY;
+					break;
+				} else {
+					stampedLock.unlockRead(stamp); //转换失败释放读锁
+					stamp = stampedLock.writeLock(); //强制获取写锁
+				}
+			}
+		} finally {
+			stampedLock.unlock(stamp); //释放所有锁
+		}
+	}
+    
+}
+```
+
+
+
+[Java并发（8）- 读写锁中的性能之王：StampedLock - knock_小新 - 博客园 (cnblogs.com)](https://www.cnblogs.com/konck/p/9691538.html)
+
+[StampedLock实现原理_曲终人散-CSDN博客](https://blog.csdn.net/chenyixin121738/article/details/109590271)
+
+[StampedLock详解_张孟浩_jay的博客-CSDN博客_stampedlock](https://blog.csdn.net/qq_40276626/article/details/119873114)
+
+[读写锁饥饿问题解决方案之StampedLock_breakout_alex的博客-CSDN博客_读写锁写饥饿](https://blog.csdn.net/breakout_alex/article/details/110942321)
+
+
+
+## 3.6 Condition 接口  
 
 Condition的作用用一句话概括就是为了实现线程的等待（await）和唤醒（signal），多线程情况下为什么需要等待唤醒机制？原因是有些线程执行到某个阶段需要等待符合某个条件才可以继续执行，
 
