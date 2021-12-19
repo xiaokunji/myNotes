@@ -221,7 +221,7 @@ public class ForkJoinPool extends AbstractExecutorService {
     /**
      * Creates and returns the common pool, respecting user settings
      * specified via system properties.
-     * jdk8 提供了一个简单的pool,(默认并行数是cpu核数-1)
+     * jdk8 提供了一个简单的pool,(默认并行数是cpu核数-1), Lambda中(所有)的并行流用的就是这个方法,所以乱用并行流可能会导致线程阻塞卡死
      */
     private static ForkJoinPool makeCommonPool() {
         int parallelism = -1;

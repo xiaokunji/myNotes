@@ -1,3 +1,7 @@
+[toc]
+
+# 介绍
+
 **stream的优势:**  
 
 ![image-20210429111143136](https://gitee.com/xiaokunji/my-images/raw/master/myMD/java8-steam.png)
@@ -14,6 +18,10 @@
 
 大概总结一下: <u>流式迭代集合操作,中间操作不会实际计算,而且会并行处理,(一个数据会同时被处理),等到了结束操作才会触发操作(和spark很像),java8的foreach还有并发处理,在数据量很大时foreach和流式的优势才会体现</u>
 
+
+
+# 1. 案例
+
 函数式接口(导读):   那些地方可以用,看流的入参就行了
 1. Function     =>  函数,有输入有输出    参入参数T , 返回 R                (用得多)
 2. predicate  => 谓词/判定, 有输入,返回布尔值,主要作为一个谓词演算推导真假值存在   (用得多)
@@ -23,6 +31,8 @@
 > 来自 <https://blog.csdn.net/lz710117239/article/details/76192629>   
 >
 > 来自 <http://www.sohu.com/a/123958799_465959> 
+
+## 1.1 基本使用
 
 ```java
         // Function => 就是一个函数,有输入输出
@@ -110,45 +120,6 @@ public static <T> T of(Supplier<? extends T> supplier) {
 	List<String> projectNoAll = serviceOrderList.stream().flatMap(s->s.getProjectNos().stream()).collect(Collectors.toList());
 	List<AClass> unionResult = Stream.of(serviceOrderList, serviceOrderList).flatMap(Collection::stream).collect(Collectors.toList());
 	
-	// 根据类中某个字段去重
-	@Test
-    public void should_return_2_because_distinct_by_age() {
-        userList = userList.stream()
-                .filter(distinctByKey(User::getName))
-                .collect(Collectors.toList());
-        userList.forEach(System.out::println);
-        assertEquals(2, userList.size());
-    }
-
-    private static <T, R> Predicate<T> distinctByKey(Function<T, R> keyExtractor) {
-        Set<R> seen = ConcurrentHashMap.newKeySet();
-        return t -> seen.add(keyExtractor.apply(t));
-    }
-// 链接：https://hacpai.com/article/1545321970124
-
-divideBatchHandler(nameList,System.out::println);
-
-    }
-
-/**
-     * 运用场景:当数据量过大,需要分批处理时
-     * @author xkj
-     * @param dataList 需要处理的数据
-     * @param consumer  处理函数
-     * @since 
-     */
-    public <T> void divideBatchHandler(List<T> dataList, Consumer<List<T>> consumer) {
-        Optional.ofNullable(dataList).ifPresent(list ->
-                IntStream.range(0, list.size())
-                        .mapToObj(i -> new AbstractMap.SimpleImmutableEntry<>(i, list.get(i)))// 给数据编号
-                        .collect(Collectors.groupingBy(
-                                e -> e.getKey() / 10, 
-                                Collectors.mapping(Map.Entry::getValue, Collectors.toList()))) // 按编号分批并合并编号对应的值
-                        .values()
-                        .parallelStream()// 并行处理
-                        .forEach(consumer) // 执行处理函数
-        );
-    }
 
 @Test
     public void testMR() {
@@ -173,6 +144,10 @@ System.out.println(s.reduce("[value]:", (s1, s2) -> s1.concat(s2)));    // [valu
 
 
 
+## 1.2 其他应用
+
+
+
 json 格式化使用, 值不为null的才输出
 ```java
 return JSON.toJSONString(val,(PropertyFilter)((obj, name, value) -> value != null));
@@ -181,7 +156,11 @@ return JSON.toJSONString(val,(PropertyFilter)((obj, name, value) -> value != nul
 // PropertyFilter: 处理obj字段
 ```
 
-受检函数式接口:
+
+
+# 2. 高阶使用
+
+## 2.1 受检函数式接口:
 
 ```java
 
@@ -334,6 +313,128 @@ public void test() {
         .forEach(System.out::println);
 }
 ```
+
+
+
+## 2.2  根据类中某个字段去重以及分页处理
+
+```java
+// 根据类中某个字段去重
+	@Test
+    public void should_return_2_because_distinct_by_age() {
+        userList = userList.stream()
+                .filter(distinctByKey(User::getName))
+                .collect(Collectors.toList());
+        userList.forEach(System.out::println);
+        assertEquals(2, userList.size());
+    }
+
+    private static <T, R> Predicate<T> distinctByKey(Function<T, R> keyExtractor) {
+        Set<R> seen = ConcurrentHashMap.newKeySet();
+        return t -> seen.add(keyExtractor.apply(t));
+    }
+// 链接：https://hacpai.com/article/1545321970124
+
+divideBatchHandler(nameList,System.out::println);
+
+    }
+
+/**
+     * 运用场景:当数据量过大,需要分批处理时
+     * @author xkj
+     * @param dataList 需要处理的数据
+     * @param consumer  处理函数
+     * @since 
+     */
+    public <T> void divideBatchHandler(List<T> dataList, Consumer<List<T>> consumer) {
+        Optional.ofNullable(dataList).ifPresent(list ->
+                IntStream.range(0, list.size())
+                        .mapToObj(i -> new AbstractMap.SimpleImmutableEntry<>(i, list.get(i)))// 给数据编号
+                        .collect(Collectors.groupingBy(
+                                e -> e.getKey() / 10, 
+                                Collectors.mapping(Map.Entry::getValue, Collectors.toList()))) // 按编号分批并合并编号对应的值
+                        .values()
+                        .parallelStream()// 并行处理
+                        .forEach(consumer) // 执行处理函数
+        );
+    }
+
+```
+
+
+
+## 2.3 自定义Collector
+
+Collector主要包含五个参数，它的行为也是由这五个参数来定义的，如下所示：
+
+Collector实现的三个泛型具体是什么：
+
+- T（输入的元素类型）：T
+- A（累积结果的容器类型）：
+- R（最终生成的结果类型）：
+
+```java
+public interface Collector<T, A, R> {
+    // supplier参数用于生成结果容器，容器类型为A
+    Supplier<A> supplier();
+    // accumulator用于消费元素，也就是归纳元素，这里的T就是元素，它会将流中的元素一个一个与结果容器A发生操作
+    BiConsumer<A, T> accumulator();
+    // combiner用于两个两个合并并行执行的线程的执行结果，将其合并为一个最终结果A
+    BinaryOperator<A> combiner();
+    // finisher用于将之前整合完的结果R转换成为A
+    Function<A, R> finisher();
+    // characteristics表示当前Collector的特征值，这是个不可变Set
+    Set<Characteristics> characteristics();
+```
+
+> 枚举常量Characteristics 中共有三个特征值，它们的具体含义如下：
+>
+> CONCURRENT：表示结果容器只有一个（即使是在并行流的情况下）。只有在并行流且收集器不具备此特性的情况下，combiner()返回的lambda表达式才会执行（中间结果容器只有一个就无需合并）。设置此特性时意味着多个线程可以对同一个结果容器调用，因此结果容器必须是线程安全的。
+>
+> UNORDERED：表示流中的元素无序。
+>
+> IDENTITY_FINISH：表示中间结果容器类型与最终结果类型一致。**设置此特性时finiser()方法不会被调用。**
+
+
+
+```java
+
+    @Test
+    public void Test(){
+        // 1. 第一个参数是临时值的容器
+        // 2. 第二个参数是把入参放到容器中
+        // 3. 第三个参数是把第二步的值做一个结合放到容器中
+        // 4. 第四个参数把容器中的值转化成结果类型
+        // 5. 第五个参数是一个特征值
+
+        BiConsumer<List<Long>, Long> accumulator = (x, y) -> {
+            x.add(y);
+            return;
+        };
+        BinaryOperator<List<Long>> combiner = (x, y) -> {
+            x.addAll(y);
+            return x;
+        };
+        Function<List<Long>, String> func = x -> String.valueOf(x.stream().mapToLong(y-> y).sum());
+        Collector<Long, List<Long>, String> longSupplier = Collector.of(ArrayList::new, accumulator, combiner,func, Collector.Characteristics.UNORDERED);
+
+        String collect = Stream.of(1, 1, 2, 2)
+                .map(Long::new)
+                .collect(longSupplier);
+        System.out.println("collect = " + collect);
+        
+    }
+```
+
+[java8新特性(四) Collector（收集器）_戏流年的博客-CSDN博客_collector](https://blog.csdn.net/xiliunian/article/details/88773718)
+
+[Java基础系列-Collector和Collectors - 简书 (jianshu.com)](https://www.jianshu.com/p/7eaa0969b424)
+
+
+
+
+
+
 
 
 
