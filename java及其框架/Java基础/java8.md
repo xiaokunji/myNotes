@@ -385,6 +385,7 @@ public interface Collector<T, A, R> {
     Function<A, R> finisher();
     // characteristics表示当前Collector的特征值，这是个不可变Set
     Set<Characteristics> characteristics();
+}
 ```
 
 > 枚举常量Characteristics 中共有三个特征值，它们的具体含义如下：
@@ -398,7 +399,8 @@ public interface Collector<T, A, R> {
 
 
 ```java
-
+/** 该案例作用: 对集合元素 求和并转成字符串
+*/
     @Test
     public void Test(){
         // 1. 第一个参数是临时值的容器
