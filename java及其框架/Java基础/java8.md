@@ -107,6 +107,7 @@ public static <T> T of(Supplier<? extends T> supplier) {
     //分组后去最大值
     Map<Integer, Optional<Users>> collect = users.stream().collect(Collectors.groupingBy(Users::getAge, Collectors.maxBy(Comparator.comparing(Users::getId))));
     // https://www.jianshu.com/p/21b20c375599 更多使用分组
+    // https://cloud.tencent.com/developer/article/1863390
     // 按年龄分组
 	Map<Integer, List<Person>> groupMapByAge = personList.stream().collect(Collectors.groupingBy(p->p.getAge()));
 	System.out.println(groupMapByAge);
