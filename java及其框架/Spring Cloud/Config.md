@@ -11,9 +11,10 @@
 ## 1. 基本使用
 > 以snv为例
 
-1.  服务端:   
-pom.xml
-```
+1. 服务端:   
+
+   `pom.xml`
+```xml
 <!-- 基础配置 -->
 <dependency>
 	<groupId>org.springframework.boot</groupId>
@@ -30,7 +31,7 @@ pom.xml
 </dependency>
 ```
 启动主类:
-```
+```java
 @SpringBootApplication
 @EnableConfigServer //表示使用配置中心
 public class SpringBootTestConfigApplication {
@@ -42,7 +43,7 @@ public class SpringBootTestConfigApplication {
 }
 ```
 application.properties
-```
+```properties
 server.port=8999
 server.servlet.context-path=/test
 
@@ -55,14 +56,14 @@ spring.profiles.active=subversion
 使用网址可以访问到配置: `http://localhost:8999/test/application/jdbc`
 2. 客户端
 pom.xml
-```
+```xml
 <dependency>
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-starter-config</artifactId>
 </dependency>
 ```
-增加一个文件 bootstrap.properties
-```
+增加一个文件 `bootstrap.properties`
+```properties
 #配置中心(服务端)地址+名字
 spring.cloud.config.uri=http://localhost:8999/test
 spring.cloud.config.name=${spring.application.name} #取当前应用的名字
@@ -70,29 +71,33 @@ spring.cloud.config.profile=jdbc
 
 #查询格式: name-profile.properties = jportal-jdbc.properties
 ```
-> ++bootstrap.properties 优先级会大于application.properties++,或者说config只会读bootstrap.properties,我写在application中没有生效
+> <u>bootstrap.properties 优先级会大于application.properties</u>,或者说config只会读bootstrap.properties,我写在application中没有生效
 
 3. 启动  
-先启动配置中心再启动客户端
+
+  先启动配置中心再启动客户端
 
 
 ## 2. 使用jdbc配置
 在生产中使用svn不太好,使用jdbc更好,就是把配置文件放在数据库中,config会默认使用  
+
 `SELECT KEY, VALUE from PROPERTIES where APPLICATION=? and PROFILE=? and LABEL=?`  
+
 查询数据,但是key和vaule在mysql中是关键字,如果使用默认sql,则如此:
-```
+
+```sql
 SELECT `KEY`, `VALUE` from PROPERTIES where APPLICATION=? and PROFILE=? and LABEL=?
 ```
 有application,profile,label三个字段唯一标识一个文件(文件中就可以有很多配置了)
 1. 客户端
-bootstrap.properties
-```
+`bootstrap.properties`
+```properties
 #在基础配置中增加,这个配置在基础配置中可以不写
 spring.cloud.config.label=dev  # 可以理解为分支,其他数据一样,写成test,就能读取数据库中test的配置文件,就可以做到配置文件的切换了
 ```
 2. 服务端
 pom.xml
-```
+```xml
  <!-- MYSQL -->
 <dependency>
     <groupId>mysql</groupId>
@@ -103,8 +108,9 @@ pom.xml
     <artifactId>spring-boot-starter-jdbc</artifactId>
 </dependency>
 ```
-application.properties
-```
+`application.properties`
+
+```properties
 spring.profiles.active=jdbc
 spring.cloud.config.server.jdbc.sql=select keye , valuee from config_info where application=? and profile = ? and lable = ? # 指定sql,这里换了个名字,加了e,
 
@@ -121,7 +127,7 @@ spring.cloud.config.server.jdbc=true
 ```
 
 在数据库中创建表,用来存储配置
-```
+```sql
 CREATE TABLE config_info  (
   id varchar(255)     NULL DEFAULT NULL,
   keye varchar(255)     NULL DEFAULT NULL,
@@ -132,7 +138,7 @@ CREATE TABLE config_info  (
 )
 ```
 插入一些例子
-```
+```sql
 INSERT INTO config_info VALUES ('1', 'spring.datasource.driver-class-name', 'com.mysql.jdbc.Driver', 'jportal-server-xkj', 'jdbc', 'resource');
 INSERT INTO config_info VALUES ('2', 'spring.datasource.url', 'jdbc:mysql://10.10.203.10:3306/jplatdv?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowMultiQueries=true', 'jportal-server-xkj', 'jdbc', 'resource');
 INSERT INTO config_info VALUES ('3', 'spring.datasource.username', 'test', 'jportal-server-xkj', 'jdbc', 'resource');
@@ -153,15 +159,16 @@ INSERT INTO config_info VALUES ('13', 'RAND_CODE_STRING', '1', 'jportal', 'const
 将配置中心加到注册中心,这样可以实现配置中心高可用,客户端还不用根据ip和端口,可以通过注册中心找到服务
 1. 服务端
 pom.xml
-```
+```xml
 <dependency>
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-starter-eureka</artifactId>
 	<version>1.3.1.RELEASE</version>
 </dependency>
 ```
-application.properties
-```
+`application.properties`
+
+```properties
 #注册中心地址
 eureka.client.serviceUrl.defaultZone=http://10.101.90.171:10001/eureka/
 ```
@@ -169,7 +176,7 @@ eureka.client.serviceUrl.defaultZone=http://10.101.90.171:10001/eureka/
 2. 客户端
 注释掉`spring.cloud.config.uri`,因为不需要指定了.
 添加如下配置:
-```
+```properties
 spring.cloud.config.discovery.enabled=true
 spring.cloud.config.discovery.serviceId=test // 配置中心的名字
 eureka.client.serviceUrl.defaultZone=http://10.101.90.171:10001/eureka/
