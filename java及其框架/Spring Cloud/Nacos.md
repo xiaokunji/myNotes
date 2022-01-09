@@ -50,17 +50,81 @@ Nacos 中的一组配置集，是组织配置的维度之一。通过一个有�
 
 
 
+# 3. 安装
 
 
 
+Nacos Server下载地址：
+
+https://github.com/alibaba/nacos/releases
+
+下载解压后打开bin目录
+
+`/work/nacos/bin/startup.sh -m standalone`
+
+> windows: `startup.cmd -m standalone`
+
+启动完后访问后台
+
+Nacos Server的后台访问地址：
+
+http://192.168.10.13:8848/nacos/index.html
+
+默认账号和密码为：`nacos/nacos`
+
+![image-20220109225601199](https://gitee.com/xiaokunji/my-images/raw/master/myMD/nacos启动日志.png)
 
 
 
+## 3.1 Nacos Server 有两种运行模式：
+
+- standalone
+- cluster (默认模式)
+
+### 3.1.1 standalone 模式
+
+此模式一般用于 demo 和测试，不用改任何配置，直接敲以下命令执行
+
+### 3.1.2 cluster 模式
+
+cluster 模式需要依赖 MySQL，然后改两个配置文件：
+
+```
+conf/cluster.conf
+conf/application.properties
+```
+
+**`conf/cluster.conf`**
+
+```conf
+# 集群节点(此处是在同一台机器上,所以用ip区分)
+192.168.10.13:8841
+192.168.10.13:8845
+192.168.10.13:8848
+```
+
+**`conf/application.properties`**
+
+```properties
+spring.datasource.platform=mysql
+db.num=1
+db.url.0=jdbc:mysql://127.0.0.1:3306/nacos_config?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&AllowPublicKeyRetrieval=True
+db.user.0=test
+db.password.0=xiaokunji
+```
+
+> 每个节点上需要改这两个文件
+>
+> 注意在application.properties文件中修改端口
 
 
 
+启动后 任意节点都能进入管理界面
+
+![image-20220110000124372](https://gitee.com/xiaokunji/my-images/raw/master/myMD/nacos控制台-集群管理.png)
+
+[阿里巴巴NACOS（3）- 部署Nacos的生产集群环境-阿里云开发者社区 (aliyun.com)](https://developer.aliyun.com/article/738219)
 
 
 
-
-
+> 一般集群部署需要搭配NGINX, 这样就可以统一管理对外ip, 且需要利用NGINX的故障转移策略, nacos本身不具备故障转移
