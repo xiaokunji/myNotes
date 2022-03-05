@@ -22,3 +22,19 @@
 
 <font style='color:red'>有时间就玩一下吧</font>
 
+![image-20220213003931648](https://gitee.com/xiaokunji/my-images/raw/master/myMD/visualVM界面.png)
+
+
+
+1. 服务启动后, 这里会自动检测到,并显示出来
+2. 此处各种监控, 其中较为重要的是监控tab页; 其次是抽样器和线程, 抽样器能看到对象内存大小的变化
+3. 监控tab中,分为cpu/内存/类/线程 的变化
+4. 导出堆进行分析, (当前软件就能分析, 可导出多次)
+
+
+
+![image-20220213004355038](https://gitee.com/xiaokunji/my-images/raw/master/myMD/visualVM抽样器.png)
+
+
+
+![image-20220213004456571](https://gitee.com/xiaokunji/my-images/raw/master/myMD/visualVM .png)
