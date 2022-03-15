@@ -160,7 +160,7 @@ db.password.0=xiaokunji
 
 > <b style='color:red'> watch-delay 有什么作用?</b>
 
-
+## 4.1 基本使用
 
 pom.xml
 
@@ -200,6 +200,14 @@ spring:
         name: javaDemo
 
 ```
+
+
+
+## 4.2 在不写本机地址时,nacos如何发现ip的
+
+与 `Eureka`使用了同一个工具类, 有spring-cloud-common提供的 `InetUtils` 类, 因此两者获取ip是同样的原理,详见 [Eureka文章](https://github.com/xiaokunji/myNotes/blob/main/java及其框架/Spring Cloud/Eureka.md)
+
+> 简单来说就是遍历所有网卡, 去除一些回旋地址,忽略地址等规则取索引最小的, 默认返回本地地址
 
 
 

@@ -1,4 +1,8 @@
-&emsp;&emsp;随着服务的越来越多，越来越杂，服务之间的调用会越来越复杂，越来越难以管理。而当某个服务发生了变化，或者由于压力性能问题，多部署了几台服务，怎么让服务的消费者知晓变化，就显得很重要了。不然就会存在调用的服务其实已经下线了，但调用者不知道等异常情况。   
+[toc]
+
+# 前言
+
+随着服务的越来越多，越来越杂，服务之间的调用会越来越复杂，越来越难以管理。而当某个服务发生了变化，或者由于压力性能问题，多部署了几台服务，怎么让服务的消费者知晓变化，就显得很重要了。不然就会存在调用的服务其实已经下线了，但调用者不知道等异常情况。   
 
 Eureka是Netflix开源的服务发现组件，本身是一个基于REST的服务。它包含Server和Client两部分。Spring Cloud将它集成在子项目Spring Cloud Netflix中，从而实现微服务的注册与发现。
 
@@ -6,6 +10,8 @@ Eureka是Netflix开源的服务发现组件，本身是一个基于REST的服务
 > 来自 <https://blog.csdn.net/qq_38363255/article/details/80909731
 
 
+
+# 1. 基础架构
 
 **Eureka服务端**   
 
@@ -23,7 +29,10 @@ Eureka是Netflix开源的服务发现组件，本身是一个基于REST的服务
 - Service Consumer：调用远程服务的服务消费方。
 - EureKa Server： 服务注册中心和服务发现中心
 
+# 2. 基本使用
+
 服务端:
+
 ```xml
  <dependency>
         <groupId>org.springframework.cloud</groupId>
@@ -90,7 +99,9 @@ public class EureakServiceApplication {
 >
 >来自 <https://blog.lqdev.cn/2018/09/06/SpringCloud/chapter-two/> 
 
-**Eureka自我保护模式**  
+
+
+# 3. Eureka自我保护模式
 
 ​	默认情况下，如果Eureka Server在一定时间(30s)内没有接收到某个微服务实例的心跳，Eureka Server将会注销该实例（默认90秒）。但是当网络分区故障发生时，微服务与Eureka Server之间无法正常通信，这就可能变得非常危险了，因为微服务本身是健康的，此时本不应该注销这个微服务。  
 
@@ -106,7 +117,8 @@ http://cloud.spring.io/spring-cloud-static/Finchley.RELEASE/single/spring-cloud.
 配置字段中文说明，大家可查看网站：微服务架构：Eureka参数配置项详解，里面很详细的说明了。
 
 
-**Eureka 如何获取IP?**
+
+# 4. Eureka 如何获取IP?
 
 1. 从`eureka.instance.ip-address`获取,如果没有设置则取自动获取`EurekaInstanceConfigBean instance = new EurekaInstanceConfigBean(inetUtils);`
 2. InetUtils工具类会获取所有网卡，依次进行遍历，取ip地址合理、ipv4地址,不是回环地址(127.0.0.1),索引值最小且不在忽略列表的网卡的ip地址作为结果。如果仍然没有找到合适的IP, 那么就将`InetAddress.getLocalHost()`做为最后的fallback方案
@@ -125,11 +137,9 @@ http://cloud.spring.io/spring-cloud-static/Finchley.RELEASE/single/spring-cloud.
 
 
 
-Eureka高可用详见:
-来自 <https://blog.lqdev.cn/2018/09/06/SpringCloud/chapter-two/> 
+Eureka高可用详见: 来自 <https://blog.lqdev.cn/2018/09/06/SpringCloud/chapter-two/> 
 
 
 
 ---
-
 
