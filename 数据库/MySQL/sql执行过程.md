@@ -34,16 +34,16 @@ SQL计划缓存，经常用查询分析器的朋友大概都知道这样一个�
 
 > 来源: https://www.cnblogs.com/wuyun-blog/p/4697144.html
 
-![img](F:\学习资料\个人笔记\MDImages\clipboard-1598716529440.png)
+![img](https://gitee.com/xiaokunji/my-images/raw/master/myMD/sql执行过程流程图.png)
 
-![img](F:\学习资料\个人笔记\MDImages\clipboard-1598716559226.png)
+![img](https://gitee.com/xiaokunji/my-images/raw/master/myMD/sql执行的处理.png)
 
 > https://www.cnblogs.com/ChangAn223/p/10686639.html
 
 sql的解析顺序:
 
-![img](F:\学习资料\个人笔记\MDImages\sql解析顺序.png)
+![img](https://gitee.com/xiaokunji/my-images/raw/master/myMD/sql解析顺序.png)
 
-![img](F:\学习资料\个人笔记\MDImages\clipboard-1598716569582.png)
+![img](https://gitee.com/xiaokunji/my-images/raw/master/myMD/sql执行顺序.png)
 
 > https://www.bilibili.com/video/BV12b411K7Zu?p=189

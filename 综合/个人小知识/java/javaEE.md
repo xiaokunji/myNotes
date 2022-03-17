@@ -10,7 +10,9 @@
 
 # 2. 网站如何提高并发量?
 答:无法容纳高访问,是因为无法快速处理请求,大量请求被堆积,导致服务器崩溃.
+
 目前最耗时的是对数据库的访问,所有优化sql是必要的.
+
 还可以用各种缓存(Redis),各种服务器(CDN,文件服务器),各种分布式操作,加快对请求的处理
 
 # 3. 对象深拷贝与浅拷贝的区别
@@ -20,12 +22,14 @@
 
 # 4. multipart/form-data  与   application/x-www-form-urlencoded
 `x-www-form-urlencoded`  
+
  传递数据是文本格式,form表单提交 默认就是这种格式
 
 `form-data`  
+
 一般用于图片,视频等数据,传递数据使用二进制流传递,所以后台是不能接收到值的,所以需要用方面的类来处理,在jfw-front中,引入了文件上传的包,spring就自动解析了,所以jfw-front这两种格式都支持,当然也可以用特定方式来取form-data格式的值 
 
-```
+```xml
 <!-- 上传文件拦截，设置最大上传文件大小   10M=10*1024*1024(B)=10485760 bytes -->  
 <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">  
     <property name="maxUploadSize" value="10485760" />
@@ -65,6 +69,7 @@ weughgbwggiqgwgru
 来自 `<http://www.ruanyifeng.com/blog/2018/07/json_web_token-tutorial.html> `
 	
 JWT 的三个部分依次如下。
+
 - Header（头部）
 - Payload（负载）
 - Signature（签名）
@@ -96,7 +101,7 @@ JWT 的三个部分依次如下。
 	
 
 除了官方字段，你还可以在这个部分定义私有字段，下面就是一个例子。
-```
+```json
 {
   "sub": "1234567890",
   "name": "John Doe",
@@ -106,6 +111,7 @@ JWT 的三个部分依次如下。
 注意，JWT 默认是不加密的，任何人都可以读到，所以不要把秘密信息放在这个部分。
 这个 JSON 对象也要使用 Base64URL 算法转成字符串。
 	
+
 3. Signature 部分是对前两部分的签名，防止数据篡改。  
 
    首先，需要指定一个密钥（secret）。这个密钥只有服务器才知道，不能泄露给用户。然后，使用 Header 里面指定的签名算法（默认是 HMAC SHA256），按照下面的公式产生签名。
@@ -146,13 +152,15 @@ HMACSHA256(
 
 # 6. spring的解决循环依赖问题
 Spring bean循环依赖即循环引用。是指2个或以上bean 互相持有对方，最终形成闭环。比如A依赖于B，B依赖A。   
+
 产生循环依赖的方式有两种，一种是通过构造器注入形成的循环依赖，第二种是通过field属性注入形成的循环依赖。  
+
 Spring通过特殊的bean生成机制解决了第二种方式产生的循环依赖问题，使得循环链的所有bean对象都能正确创建，而构造器注入方式阐释的循环依赖则会抛出异常。两者之间的差异能在bean创建机制中得到解释。
 
 总的来说，Spring解决循环依赖问题是通过**结合bean实例化和bean属性填装分离**，singletonObjects、earlySingletonObjects 、singletonFactories 三级缓存机制和引用提前暴露机制实现的。
 > 原文链接：https://blog.csdn.net/panda9527z/article/details/107359916
 
-```
+```java
 org.springframework.beans.factory.support.DefaultSingletonBeanRegistry#getSingleton(java.lang.String, boolean)
 
 /** 一级缓存，保存singletonBean实例: bean name --> bean instance */
@@ -190,13 +198,20 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 ```
 
 **为什么要三级缓存呢?(一级或二级不行吗)**   
+
 spring处理循环依赖是把bean的实体化和属性装盘分开(就是 先生成对象,属性等会再设置),这样可以把实体类提前暴露出去,给其他bean使用,这样就解决了循环问题(我先给你用,装配时你只关心我,不关心我所拥有的属性)   
-既然如此,我用一级缓存的也是可以,只要提前暴露就行,的确如此,但这样,++会把完整的BEAN和不完整的BEAN(还没完成属性装配的BEAN)放一起,那去取的时候,无法区分++,如果取到未装配的bean就凉凉了.  
+
+既然如此,我用一级缓存的也是可以,只要提前暴露就行,的确如此,但这样,<u>会把完整的BEAN和不完整的BEAN(还没完成属性装配的BEAN)放一起,那去取的时候,无法区分</u>,如果取到未装配的bean就凉凉了.  
+
 如此,需要二级缓存,大部分情况下,二级缓存就足够用了,但是有种情况下会出问题,
+
 例如A->b->c->A , 三者形成循环
-我对++b类做了切面(切面会利用动态代理生成新的类),这样对bean池中就会两个类,b类和动态b类,但spring又是单例bean,所以会抛异常++,这时需要再加一层缓存来保证这一种,spring利用工厂的方式来处理的.
+
+我对<u>b类做了切面(切面会利用动态代理生成新的类),这样对bean池中就会两个类,b类和动态b类,但spring又是单例bean,所以会抛异常</u>,这时需要再加一层缓存来保证这一种,spring利用工厂的方式来处理的.
+
 > https://my.oschina.net/u/4340310/blog/4332450   
-https://blog.csdn.net/panda9527z/article/details/107359916
+>
+> https://blog.csdn.net/panda9527z/article/details/107359916
 
 
 
