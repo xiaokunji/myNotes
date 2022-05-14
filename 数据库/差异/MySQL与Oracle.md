@@ -1,3 +1,5 @@
+在使用上的差别: 
+
 mysql中 where 条件允许 1,0,true,false 条件,而Oracle只允许true/false,
 
 例如 : select * from person where 1  ,相当于where 1=1 ,是个恒等式
