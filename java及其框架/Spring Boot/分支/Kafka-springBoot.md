@@ -1,7 +1,7 @@
 > kafka 的 server.properties 中加入 `host.name=10.1.21.37`, 不然springBoot连不上kafka
 
 1.pom.xml
-```
+```xml
 <dependency>
     <groupId>org.springframework.kafka</groupId>
     <artifactId>spring-kafka</artifactId>
@@ -9,7 +9,8 @@
 ```
 
 2.application.properties
-```
+
+```properties
 #============== kafka ===================
 # 指定kafka 代理地址，可以多个
 spring.kafka.bootstrap-servers=10.1.21.37:9092
@@ -44,7 +45,7 @@ topic=msg.topic
 ```
 
 3. 代码
-```
+```java
 
 @Autowired
 private KafkaTemplate<String, Object> kafka;
@@ -96,13 +97,14 @@ public Object consumeMsgOfPart(String msg) {
 
 ```
 // 使用Ack机制确认消费
+
 //使用Kafka的Ack机制比较简单，只需简单的三步即可：
 
 1.  设置ENABLE_AUTO_COMMIT_CONFIG=false，禁止自动提交
 2.  设置AckMode=MANUAL_IMMEDIATE
 3.  监听方法加入Acknowledgment ack 参数
 
-```
+```java
 配置文件加入如下:
 spring.kafka.consumer.enable-auto-commit=false
 spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE
@@ -117,5 +119,7 @@ spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE
 		return record;
 	}
 ```
+
+
 
 来自: https://www.jianshu.com/p/a64defb44a23

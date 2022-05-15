@@ -1,11 +1,13 @@
 工作原理是通过过滤器拦截,做一些操作,来达到身份认证和权限管理的作用
+
 有拦截功能,跳转功能  
+
 shiro自带拦截器,也有相应实现,具体实现不需要我们操作,只需做在什么情况下跳转什么页面(或者操作),比如:当密码错误时,要做什么(自己写操作) ; 没有登录时,做什么等等
 
 > 详情: https://blog.csdn.net/ityouknow/article/details/73836159
 
 
-```
+```java
  @Bean(name = "shiroFilter")
     public ShiroFilterFactoryBean getShiroFilterFactoryBean(DefaultWebSecurityManager securityManager) {
         logger.info("-------------getShiroFilterFactoryBean()+++++++++++");

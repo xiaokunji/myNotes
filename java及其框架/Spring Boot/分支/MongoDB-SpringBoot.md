@@ -1,5 +1,5 @@
 配置文件,application.yml
-```
+```yml
 spring:
   data:
     mongodb:
@@ -8,7 +8,7 @@ spring:
 ```
 
 工具类:
-```
+```java
 
 public interface MongodbMapper<T> {
 
@@ -20,7 +20,7 @@ public interface MongodbMapper<T> {
 ```
 
 实现mongo工具类
-```
+```java
 @Configuration
 @Component
 @Slf4j
@@ -216,7 +216,7 @@ public abstract class MongodbMapperImpl<T> implements MongodbMapper<T> {
 ```
 
 业务类
-```
+```java
 @Autowired
 private ResultRecordMapper  resultMapper;
 /**
@@ -325,7 +325,7 @@ private ResultRecordMapper  resultMapper;
 ```
 
 mongodbMapper类
-```
+```java
 public interface ResultRecordMapper extends MongodbMapper<CallRecordDetail> {
 
 }
@@ -333,7 +333,7 @@ public interface ResultRecordMapper extends MongodbMapper<CallRecordDetail> {
 ```
 
 mongodbMapper实现类
-```
+```java
 @Component
 public class ResultRecordMapperImpl extends MongodbMapperImpl<CallRecordDetail> implements ResultRecordMapper  {
 

@@ -5,9 +5,9 @@
 到目前为止，ES有4种客户端，分别是：Jest client、Rest client、Transport client、Node client，相信大家在项目集成中选择客户端比较纠结，搜索案例的时候一会是这个客户端实现的，一会儿又是别的客户端实现的，自己又不了解每个客户端的优劣势，但又想集成最好的，下面就来说说各个客户端的区别，以及优劣势
 
 ES支持两种协议  
-       HTTP协议，支持的客户端有Jest client和Rest client
 
-Native Elasticsearch binary协议，也就是Transport client和Node client
+- HTTP协议，支持的客户端有Jest client和Rest client
+- Native Elasticsearch binary协议，也就是Transport client和Node client
 
 **Jest client和Rest client区别**
 

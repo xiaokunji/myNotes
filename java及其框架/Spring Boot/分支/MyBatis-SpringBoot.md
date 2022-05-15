@@ -1,5 +1,5 @@
 在application.properties 中添加配置文件
-```
+```properties
 spring.datasource.driver-class-name=com.mysql.jdbc.Driver
 spring.datasource.url=jdbc:mysql://localhost:3306/test?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowMultiQueries=true
 spring.datasource.username=xkj
@@ -24,7 +24,7 @@ mybatis.configuration.map-underscore-to-camel-case=true
 
 
 导入包:
-```
+```xml
 <!--  MyBatis -->
     <dependency>
         <groupId>org.mybatis.spring.boot</groupId>
@@ -45,7 +45,7 @@ mybatis.configuration.map-underscore-to-camel-case=true
 private UserService userService;//service接口不贴了,普通接口
 ```
 方法调用:
-```
+```java
 @RequestMapping("/getUser")
     public User getUser() {
         User user = userService.getUser();
@@ -54,7 +54,7 @@ private UserService userService;//service接口不贴了,普通接口
     }
 ```
 实现类:
-```
+```java
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -70,14 +70,14 @@ public class UserServiceImpl implements UserService {
 }
 ```
 映射mapper的接口类:
-```
+```java
 @Mapper
 public interface UserDao {
     public User getUser() ;
 }
 ```
 mapper文件:
-```
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">  
 <mapper namespace="com.xkj.demo.dao.UserDao">
