@@ -1,4 +1,4 @@
-[toc]
+[TOC]
 
 # 介绍
 
@@ -14,23 +14,23 @@
 
 &emsp;&emsp;结束操作又可以分为短路与非短路操作，这个应该很好理解，前者是指遇到某些符合条件的元素就可以得到最终结果；而后者是指必须处理所有元素才能得到最终结果。
 
->来自 <http://www.cnblogs.com/Dorae/p/7779246.html> 
+> 来自 <http://www.cnblogs.com/Dorae/p/7779246.html> 
 
 大概总结一下: <u>流式迭代集合操作,中间操作不会实际计算,而且会并行处理,(一个数据会同时被处理),等到了结束操作才会触发操作(和spark很像),java8的foreach还有并发处理,在数据量很大时foreach和流式的优势才会体现</u>
-
-
 
 # 1. 案例
 
 函数式接口(导读):   那些地方可以用,看流的入参就行了
+
 1. Function     =>  函数,有输入有输出    参入参数T , 返回 R                (用得多)
 2. predicate  => 谓词/判定, 有输入,返回布尔值,主要作为一个谓词演算推导真假值存在   (用得多)
 3. consumer => 谓词/消费,有输入无输出,
 4. supplier  =>     提供, 无输入有输出,
 5. (特殊)  Operator  =>    继承于 BiFunction ,所以也属于function, 算子Operator包括：UnaryOperator和BinaryOperator。分别对应单元算子和二元算子。其中BinaryOperator 可用于reduce
-> 来自 <https://blog.csdn.net/lz710117239/article/details/76192629>   
->
-> 来自 <http://www.sohu.com/a/123958799_465959> 
+   
+   > 来自 <https://blog.csdn.net/lz710117239/article/details/76192629>   
+   > 
+   > 来自 <http://www.sohu.com/a/123958799_465959> 
 
 ## 1.1 基本使用
 
@@ -67,17 +67,17 @@
         Supplier<Person> person=Person::new;
         Person p = person.get(); // 每个get都是个新的对象
         System.out.println(p);  //输出: Person [name=null, age=0]
-	
+
 /**
 * 判断语句是否正确执行,返回语句的返回值,报错则为null
 * 比如,传入格式化时间语句,确定时间是否合法
 */
 public static <T> T of(Supplier<? extends T> supplier) {
-		try {
-			return supplier.get();
-		} catch (Throwable t) {
-			return null;
-		}
+        try {
+            return supplier.get();
+        } catch (Throwable t) {
+            return null;
+        }
 }
 
 @Test
@@ -109,18 +109,18 @@ public static <T> T of(Supplier<? extends T> supplier) {
     // https://www.jianshu.com/p/21b20c375599 更多使用分组
     // https://cloud.tencent.com/developer/article/1863390
     // 按年龄分组
-	Map<Integer, List<Person>> groupMapByAge = personList.stream().collect(Collectors.groupingBy(p->p.getAge()));
-	System.out.println(groupMapByAge);
-    
+    Map<Integer, List<Person>> groupMapByAge = personList.stream().collect(Collectors.groupingBy(p->p.getAge()));
+    System.out.println(groupMapByAge);
+
     // 用map操作数值类型时是有装箱处理的,多少有损耗,用mapToLong就是将值变成基本类型,然后用boxed变成普通流
-	Long decrease  = ageList.stream().mapToLong(a->a).boxed().reduce((x,y)->x-y).orElse(0L);
-	System.out.println(decrease);
-	
-	// 合并list
-	List<ServiceOrder> serviceOrderList = new ArrayList<>();
-	List<String> projectNoAll = serviceOrderList.stream().flatMap(s->s.getProjectNos().stream()).collect(Collectors.toList());
-	List<AClass> unionResult = Stream.of(serviceOrderList, serviceOrderList).flatMap(Collection::stream).collect(Collectors.toList());
-	
+    Long decrease  = ageList.stream().mapToLong(a->a).boxed().reduce((x,y)->x-y).orElse(0L);
+    System.out.println(decrease);
+
+    // 合并list
+    List<ServiceOrder> serviceOrderList = new ArrayList<>();
+    List<String> projectNoAll = serviceOrderList.stream().flatMap(s->s.getProjectNos().stream()).collect(Collectors.toList());
+    List<AClass> unionResult = Stream.of(serviceOrderList, serviceOrderList).flatMap(Collection::stream).collect(Collectors.toList());
+
 
 @Test
     public void testMR() {
@@ -129,7 +129,6 @@ public static <T> T of(Supplier<? extends T> supplier) {
         Optional<String> reduceStr = nameList.stream().map(n -> n).reduce(lk);//将所有的值拼起来
         System.out.println(reduceStr.get());
     }
-
 ```
 
 `T reduce(T identity, BinaryOperator<T> accumulator)`  
@@ -141,15 +140,13 @@ public static <T> T of(Supplier<? extends T> supplier) {
 Stream<String> s = Stream.of("test", "t1", "t2", "teeeee", "aaaa", "taaa");
 System.out.println(s.reduce("[value]:", (s1, s2) -> s1.concat(s2)));    // [value]:testt1t2teeeeeaaaataaa
 ```
+
 > 来自 <https://blog.csdn.net/icarusliu/article/details/79504602> 
-
-
 
 ## 1.2 其他应用
 
-
-
 json 格式化使用, 值不为null的才输出
+
 ```java
 return JSON.toJSONString(val,(PropertyFilter)((obj, name, value) -> value != null));
 // NameFilter: 处理name字段,(比如对name加个后缀)
@@ -157,14 +154,11 @@ return JSON.toJSONString(val,(PropertyFilter)((obj, name, value) -> value != nul
 // PropertyFilter: 处理obj字段
 ```
 
-
-
 # 2. 高阶使用
 
 ## 2.1 受检函数式接口:
 
 ```java
-
 package com.gree.ecommerce.utils.function;
 
 import java.util.Optional;
@@ -315,13 +309,11 @@ public void test() {
 }
 ```
 
-
-
 ## 2.2  根据类中某个字段去重以及分页处理
 
 ```java
 // 根据类中某个字段去重
-	@Test
+    @Test
     public void should_return_2_because_distinct_by_age() {
         userList = userList.stream()
                 .filter(distinctByKey(User::getName))
@@ -359,10 +351,7 @@ divideBatchHandler(nameList,System.out::println);
                         .forEach(consumer) // 执行处理函数
         );
     }
-
 ```
-
-
 
 ## 2.3 自定义Collector
 
@@ -390,14 +379,12 @@ public interface Collector<T, A, R> {
 ```
 
 > 枚举常量Characteristics 中共有三个特征值，它们的具体含义如下：
->
+> 
 > CONCURRENT：表示结果容器只有一个（即使是在并行流的情况下）。只有在并行流且收集器不具备此特性的情况下，combiner()返回的lambda表达式才会执行（中间结果容器只有一个就无需合并）。设置此特性时意味着多个线程可以对同一个结果容器调用，因此结果容器必须是线程安全的。
->
+> 
 > UNORDERED：表示流中的元素无序。
->
+> 
 > IDENTITY_FINISH：表示中间结果容器类型与最终结果类型一致。**设置此特性时finiser()方法不会被调用。**
-
-
 
 ```java
 /** 该案例作用: 对集合元素 求和并转成字符串
@@ -425,7 +412,7 @@ public interface Collector<T, A, R> {
                 .map(Long::new)
                 .collect(longSupplier);
         System.out.println("collect = " + collect);
-        
+
     }
 ```
 
@@ -433,13 +420,4 @@ public interface Collector<T, A, R> {
 
 [Java基础系列-Collector和Collectors - 简书 (jianshu.com)](https://www.jianshu.com/p/7eaa0969b424)
 
-
-
-
-
-
-
-
-
 ---
-
