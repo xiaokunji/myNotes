@@ -18,6 +18,12 @@
 
 大概总结一下: <u>流式迭代集合操作,中间操作不会实际计算,而且会并行处理,(一个数据会同时被处理),等到了结束操作才会触发操作(和spark很像),java8的foreach还有并发处理,在数据量很大时foreach和流式的优势才会体现</u>
 
+
+
+![img](https://github.com/xiaokunji/MyImagesBed/blob/master/mdImagesimage-20210824141738190.png)
+
+
+
 # 1. 案例
 
 函数式接口(导读):   那些地方可以用,看流的入参就行了
