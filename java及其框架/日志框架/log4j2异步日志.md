@@ -51,6 +51,20 @@ AsyncLogger才是log4j2 的重头戏，也是官方推荐的异步方式。它�
 
 例子:
 
+引入配置
+
+```xml
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>3.4.2</version>
+            </dependency>
+```
+
+
+
+
+
 **全局异步**
 
 ```xml
@@ -115,6 +129,10 @@ AsyncLogger才是log4j2 的重头戏，也是官方推荐的异步方式。它�
 
 root logger就是同步的，但是com.foo.Bar的logger就是异步的。
 
+> AsyncAppender 和AsyncLogger  同时使用不会效果增倍 ; 全局异步和混合异步 同时使用也不会效果增倍
+>
+> 所以不建议同时使用
+
 
 
 # 总结
@@ -134,3 +152,5 @@ root logger就是同步的，但是com.foo.Bar的logger就是异步的。
 [log4j2异步那些事(2)--AsyncLogger | BryantChang的博客](https://bryantchang.github.io/2019/01/15/log4j2-asyncLogger/)
 
 [log4j2异步日志解读（二）AsyncLogger - lewis09 - 博客园 (cnblogs.com)](https://www.cnblogs.com/lewis09/p/10004117.html)
+
+[Log4j2最佳实践 - 简书 (jianshu.com)](https://www.jianshu.com/p/62c0ef1cc699)
