@@ -364,7 +364,9 @@ Object executeAndDecode(RequestTemplate template, Options options) throws Throwa
 
 # Feign 如何负载均衡
 
-一般而言，我们生产者注册多个服务，消费者调用时需要使用负载均衡从中  **轮训机制选取一个健康并且可用的生产者服务**
+一般而言，我们生产者注册多个服务，消费者调用时需要使用负载均衡从中  **轮询机制选取一个健康并且可用的生产者服务**
+
+> 默认是轮询机制, 可以修改
 
 ![img](https://pic4.zhimg.com/v2-cd503dcf36feb0ed270ffa0a5f4bd39f_r.jpg)
 
@@ -454,7 +456,9 @@ public Server chooseServer(Object key) {
                 String zone = ZoneAvoidanceRule.randomChooseZone(zoneSnapshot, availableZones);
                 logger.debug("Zone chosen: {}", zone);
                 if (zone != null) {
+                    // 拿到具体的负载均衡规则
                     BaseLoadBalancer zoneLoadBalancer = getLoadBalancer(zone);
+                    // 根据规则获取服务信息
                     server = zoneLoadBalancer.chooseServer(key);
                 }
             }
@@ -473,70 +477,112 @@ public Server chooseServer(Object key) {
 
 
 
-父级chooseServer()
+拿到负载均衡对象
+
+`com.netflix.loadbalancer.ZoneAwareLoadBalancer#getLoadBalancer`
+
+```java
+BaseLoadBalancer getLoadBalancer(String zone) {
+        zone = zone.toLowerCase();
+        BaseLoadBalancer loadBalancer = balancers.get(zone);
+        if (loadBalancer == null) {
+        	// We need to create rule object for load balancer for each zone
+            // 拿到具体的规则 , 默认是轮询
+        	IRule rule = cloneRule(this.getRule());
+            loadBalancer = new BaseLoadBalancer(this.getName() + "_" + zone, rule, this.getLoadBalancerStats());
+            BaseLoadBalancer prev = balancers.putIfAbsent(zone, loadBalancer);
+            if (prev != null) {
+            	loadBalancer = prev;
+            }
+        } 
+        return loadBalancer;        
+    }
+```
+
+`com.netflix.loadbalancer.BaseLoadBalancer#getRule`
+
+```java
+private final static IRule DEFAULT_RULE = new RoundRobinRule();
+protected IRule rule = DEFAULT_RULE;
+public IRule getRule() {
+        return rule;
+}
+```
+
+
+
+拿到规则后, 调用chooseServer()
 
 `com.netflix.loadbalancer.BaseLoadBalancer#chooseServer`
 
-> 就记录了下 这个方法的调用次数, 然后调用了 `com.netflix.loadbalancer.IRule#choose`
->
-> 这个调用次数就是轮训的记录
+
 
 调用了其下实现类
 
-`com.netflix.loadbalancer.PredicateBasedRule#choose`
+`com.netflix.loadbalancer.RoundRobinRule#choose(com.netflix.loadbalancer.ILoadBalancer, java.lang.Object)`
 
 ```java
-  @Override
-    public Server choose(Object key) {
-        ILoadBalancer lb = getLoadBalancer();
-        // lb.getAllServers() 就拿到了ip + port信息, 
-        // 过滤后轮训拿到服务信息
-        Optional<Server> server = getPredicate().chooseRoundRobinAfterFiltering(lb.getAllServers(), key);
-        if (server.isPresent()) {
-            return server.get();
-        } else {
+public Server choose(ILoadBalancer lb, Object key) {
+        if (lb == null) {
+            log.warn("no load balancer");
             return null;
-        }       
-    }
-```
-
-
-
-`com.netflix.loadbalancer.AbstractServerPredicate#chooseRoundRobinAfterFiltering(java.util.List<com.netflix.loadbalancer.Server>, java.lang.Object)`
-
-```java
-public Optional<Server> chooseRoundRobinAfterFiltering(List<Server> servers, Object loadBalancerKey) {
-    // 拿到合适的服务列表
-        List<Server> eligible = getEligibleServers(servers, loadBalancerKey);
-        if (eligible.size() == 0) {
-            return Optional.absent();
         }
-    // 根据之前记录的调用次数, 当成下标去取值
-        return Optional.of(eligible.get(incrementAndGetModulo(eligible.size())));
-    }
-```
 
+        Server server = null;
+        int count = 0;
+        while (server == null && count++ < 10) {
+            List<Server> reachableServers = lb.getReachableServers();
+            // 所有服务的ip + port
+            List<Server> allServers = lb.getAllServers();
+            int upCount = reachableServers.size();
+            int serverCount = allServers.size();
 
-
-`com.netflix.loadbalancer.AbstractServerPredicate#getEligibleServers(java.util.List<com.netflix.loadbalancer.Server>, java.lang.Object)`
-
-```java
-public List<Server> getEligibleServers(List<Server> servers, Object loadBalancerKey) {
-        if (loadBalancerKey == null) {
-            // 过滤拿到合适的服务列表
-            //this.getServerOnlyPredicate() 方法拿到的是Predicate, 其下会执行两个断言, ZoneAvoidancePredicate; AvailabilityPredicate
-            return ImmutableList.copyOf(Iterables.filter(servers, this.getServerOnlyPredicate()));            
-        } else {
-            List<Server> results = Lists.newArrayList();
-            for (Server server: servers) {
-                if (this.apply(new PredicateKey(loadBalancerKey, server))) {
-                    results.add(server);
-                }
+            if ((upCount == 0) || (serverCount == 0)) {
+                log.warn("No up servers available from load balancer: " + lb);
+                return null;
             }
-            return results;            
+
+            // 下一个服务的下标
+            int nextServerIndex = incrementAndGetModulo(serverCount);
+            server = allServers.get(nextServerIndex);
+
+            if (server == null) {
+                /* Transient. */
+                Thread.yield();
+                continue;
+            }
+
+            if (server.isAlive() && (server.isReadyToServe())) {
+                return (server);
+            }
+
+            // Next.
+            server = null;
+        }
+
+        if (count >= 10) {
+            log.warn("No available alive servers after 10 tries from load balancer: "
+                    + lb);
+        }
+        return server;
+    }
+```
+
+`com.netflix.loadbalancer.RoundRobinRule#incrementAndGetModulo`
+
+```java
+    private int incrementAndGetModulo(int modulo) {
+        for (;;) {
+            // AtomicInteger nextServerCyclicCounter = nextServerCyclicCounter = new AtomicInteger(0);  类初始化时 初始化了变量
+            int current = nextServerCyclicCounter.get();
+            int next = (current + 1) % modulo;
+            if (nextServerCyclicCounter.compareAndSet(current, next))
+                return next;
         }
     }
 ```
+
+
 
 
 
@@ -551,6 +597,16 @@ public List<Server> getEligibleServers(List<Server> servers, Object loadBalancer
 # 使用okHttp
 
 [Feign、httpclient、OkHttp3 结合使用 - 疯狂创客圈 - 博客园 (cnblogs.com)](https://www.cnblogs.com/crazymakercircle/p/11968479.html)
+
+
+
+# 修改负载均衡策略
+
+[OpenFeign修改负载均衡策略_一觉睡过头的菜鸡的博客-CSDN博客_openfeign负载均衡](https://blog.csdn.net/qq_39825705/article/details/125175303)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/ef9f43296f38477a9b00d608d75428c6.png)
+
+
 
 
 
