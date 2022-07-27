@@ -611,3 +611,10 @@ public Server choose(ILoadBalancer lb, Object key) {
 
 
 [掌握 SpringCloud OpenFeign 核心原理 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/346273428)
+
+
+
+推荐文章:
+
+[万字长文 | 深入理解 OpenFeign 的架构原理 (qq.com)](https://mp.weixin.qq.com/s/h-DyoZ-4MRXDUHrGooYfyA)
+
