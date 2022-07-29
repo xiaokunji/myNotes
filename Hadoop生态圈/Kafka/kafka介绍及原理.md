@@ -314,7 +314,9 @@ Memory Mapped Files(后面简称mmap)也被翻译成 内存映射文件 ，在64
 
 基于sendfile实现Zero Copy
 
-传统模式下，当需要对一个文件进行传输的时候，其具体流程细节如下：
+> 零拷贝不是没有拷贝, 只是减少了一个拷贝(对用户缓存区来说是无拷贝了)
+
+传统模式下，当需要对一个**文件进行传输**的时候，其具体流程细节如下：
 
 1. 调用read函数，文件数据被copy到内核缓冲区
 2. read函数返回，文件数据从内核缓冲区copy到用户缓冲区
@@ -342,6 +344,10 @@ sendfile(socket, file, len);
 在apache，nginx，lighttpd等web服务器当中，都有一项sendfile相关的配置，使用sendfile可以大幅提升文件传输性能。
 
 Kafka把所有的消息都存放在一个一个的文件中，当消费者需要数据的时候Kafka直接把文件发送给消费者，配合mmap作为文件读写方式，直接把它传给sendfile。
+
+> Kafka 的索引文件使用的是 mmap + write 方式，数据文件使用的是 sendfile 方式。
+>
+> [Java NIO - 零拷贝实现 | Java 全栈知识体系 (pdai.tech)](https://pdai.tech/md/java/io/java-io-nio-zerocopy.html)
 
 #### **5.4.2.2 批量压缩**
 
