@@ -166,7 +166,7 @@ org.springframework.beans.factory.support.DefaultSingletonBeanRegistry#getSingle
 /** 一级缓存，保存singletonBean实例: bean name --> bean instance */
 private final Map<String, Object> singletonObjects = new ConcurrentHashMap<String, Object>(256);
 
-/** 二级缓存，保存早期未完全创建的Singleton实例: bean name --> bean instance */
+/** 二级缓存，保存创建好但没有初始化属性的Bean : bean name --> bean instance */
 private final Map<String, Object> earlySingletonObjects = new HashMap<String, Object>(16); 
 
 /** 三级缓存，保存singletonBean生产工厂: bean name --> ObjectFactory */
@@ -212,6 +212,8 @@ spring处理循环依赖是把bean的实体化和属性装盘分开(就是 先�
 > https://my.oschina.net/u/4340310/blog/4332450   
 >
 > https://blog.csdn.net/panda9527z/article/details/107359916
+>
+> [Spring是怎么解决循环依赖的？-Java面试题 (zwmst.com)](https://zwmst.com/1844.html)
 
 
 

@@ -127,8 +127,6 @@ int n = read(connfd, buffer) != SUCCESS);
 
 当然还有个聪明的办法，我们可以每 accept 一个客户端连接后，将这个文件描述符（connfd）放到一个数组里。
 
-当然还有个聪明的办法，我们可以每 accept 一个客户端连接后，将这个文件描述符（connfd）放到一个数组里。
-
 ```c
 fdlist.add(connfd);
 ```
